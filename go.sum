@@ -1,7 +1,7 @@
 cloud.google.com/go v0.30.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/bsm/redislock v0.5.0/go.mod h1:qagqKlV+xiLy26iV34Y3zRPxRcJjQYbV7pZfWFeSZ8M=
-github.com/condensat/bank-core v0.0.5 h1:SkwSh9RitmX4n8+9S/5hYGaE5zxFdMNVORKpF0Ul2go=
-github.com/condensat/bank-core v0.0.5/go.mod h1:4A1qK9gHd7j9tlY8Y6NBaZ2IP02zt/GzCmOrrFAYEw0=
+github.com/condensat/bank-core v0.0.5-0.20200923130000-e8bab80fd60e h1:5XWVQcp8Zpn4p2k/J3pTj5C4zgCW/Ek6OIVMz3orK5c=
+github.com/condensat/bank-core v0.0.5-0.20200923130000-e8bab80fd60e/go.mod h1:4A1qK9gHd7j9tlY8Y6NBaZ2IP02zt/GzCmOrrFAYEw0=
 github.com/condensat/secureid v0.1.0 h1:x08lPpKf+qNZXvCIWkMF90l94tH5KgehXIV2vuWqi98=
 github.com/condensat/secureid v0.1.0/go.mod h1:uK99gtR8BlxJH7dw+f6Rd7mJ2OgvAUlTUA49ASfxLcM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
