@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/condensat/bank-backoffice/services"
+	"github.com/condensat/bank-core/api/sessions"
 
 	"github.com/condensat/bank-core/logger"
 	"github.com/condensat/bank-core/utils"
@@ -25,6 +26,10 @@ type BackOffice int
 
 func (p *BackOffice) Run(ctx context.Context, port int, corsAllowedOrigins []string) {
 	log := logger.Logger(ctx).WithField("Method", "backoffice.BackOffice.Run")
+
+	// create session and add to context
+	session := sessions.NewSession(ctx)
+	ctx = context.WithValue(ctx, sessions.KeySessions, session)
 
 	muxer := mux.NewRouter()
 
