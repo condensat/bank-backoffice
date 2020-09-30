@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/condensat/bank-core v0.0.5-0.20200930070000-ad30b4041e90
+	github.com/condensat/secureid v0.1.0
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/rpc v1.2.0
 	github.com/jinzhu/gorm v1.9.12
