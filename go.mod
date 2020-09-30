@@ -3,7 +3,7 @@ module github.com/condensat/bank-backoffice
 go 1.14
 
 require (
-	github.com/condensat/bank-core v0.0.5-0.20201007130000-2e9cb5a57508
+	github.com/condensat/bank-core v0.0.5-0.20200930130000-a0e207f55685
 	github.com/condensat/secureid v0.1.0
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/rpc v1.2.0
