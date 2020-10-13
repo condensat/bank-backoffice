@@ -9,15 +9,14 @@ import (
 
 	"github.com/condensat/bank-core/logger"
 
-	"github.com/condensat/bank-core/api/sessions"
-
-	apiservice "github.com/condensat/bank-core/api/services"
 	"github.com/condensat/bank-core/database/model"
+	"github.com/condensat/bank-core/networking"
+	"github.com/condensat/bank-core/networking/sessions"
 )
 
 // WalletListRequest holds args for walletlist requests
 type WalletListRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 }
 
 type WalletListStatus struct {
@@ -35,10 +34,10 @@ type WalletListResponse struct {
 func (p *DashboardService) WalletList(r *http.Request, request *WalletListRequest, reply *WalletListResponse) error {
 	ctx := r.Context()
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.WalletList")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "WalletList")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "WalletList")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -95,7 +94,7 @@ func (p *DashboardService) WalletList(r *http.Request, request *WalletListReques
 
 // WalletDetailRequest holds args for walletdetail requests
 type WalletDetailRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	Wallet string
 }
 
@@ -108,10 +107,10 @@ type WalletDetailResponse struct {
 func (p *DashboardService) WalletDetail(r *http.Request, request *WalletDetailRequest, reply *WalletDetailResponse) error {
 	ctx := r.Context()
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.WalletDetail")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "WalletDetail")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "WalletDetail")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)

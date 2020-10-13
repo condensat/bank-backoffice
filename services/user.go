@@ -8,15 +8,16 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/condensat/bank-core"
 	"github.com/condensat/bank-core/appcontext"
+	"github.com/condensat/bank-core/logger"
+	"github.com/condensat/bank-core/security/secureid"
+
 	"github.com/condensat/bank-core/database"
 	"github.com/condensat/bank-core/database/model"
-	"github.com/condensat/bank-core/logger"
-	"github.com/condensat/secureid"
+	"github.com/condensat/bank-core/database/query"
 
-	apiservice "github.com/condensat/bank-core/api/services"
-	"github.com/condensat/bank-core/api/sessions"
+	"github.com/condensat/bank-core/networking"
+	"github.com/condensat/bank-core/networking/sessions"
 )
 
 const (
@@ -25,7 +26,7 @@ const (
 
 // UserListRequest holds args for userlist requests
 type UserListRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	RequestPaging
 }
 
@@ -46,10 +47,10 @@ func (p *DashboardService) UserList(r *http.Request, request *UserListRequest, r
 	ctx := r.Context()
 	db := appcontext.Database(ctx)
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.UserList")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "UserList")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "UserList")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -79,15 +80,15 @@ func (p *DashboardService) UserList(r *http.Request, request *UserListRequest, r
 	}
 	var pagesCount int
 	var userPage []model.User
-	err = db.Transaction(func(db bank.Database) error {
+	err = db.Transaction(func(db database.Context) error {
 		var err error
-		pagesCount, err = database.UserPagingCount(db, DefaultUserCountByPage)
+		pagesCount, err = query.UserPagingCount(db, DefaultUserCountByPage)
 		if err != nil {
 			pagesCount = 0
 			return err
 		}
 
-		userPage, err = database.UserPage(db, model.UserID(startID), DefaultUserCountByPage)
+		userPage, err = query.UserPage(db, model.UserID(startID), DefaultUserCountByPage)
 		if err != nil {
 			userPage = nil
 			return err
@@ -97,7 +98,7 @@ func (p *DashboardService) UserList(r *http.Request, request *UserListRequest, r
 	if err != nil {
 		log.WithError(err).
 			Error("UserPaging failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	var next string
@@ -139,7 +140,7 @@ func (p *DashboardService) UserList(r *http.Request, request *UserListRequest, r
 
 // UserListRequest holds args for userdetail requests
 type UserDetailRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	UserID string `json:"userId"`
 }
 
@@ -152,10 +153,10 @@ func (p *DashboardService) UserDetail(r *http.Request, request *UserDetailReques
 	ctx := r.Context()
 	db := appcontext.Database(ctx)
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.UserDetail")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "UserDetail")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "UserDetail")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -183,15 +184,15 @@ func (p *DashboardService) UserDetail(r *http.Request, request *UserDetailReques
 
 	var user model.User
 	var roles []string
-	err = db.Transaction(func(db bank.Database) error {
+	err = db.Transaction(func(db database.Context) error {
 		var err error
 
-		user, err = database.FindUserById(db, model.UserID(userID))
+		user, err = query.FindUserById(db, model.UserID(userID))
 		if err != nil {
 			return err
 		}
 
-		roleNames, err := database.UserRoles(db, user.ID)
+		roleNames, err := query.UserRoles(db, user.ID)
 		if err != nil {
 			return err
 		}
@@ -204,7 +205,7 @@ func (p *DashboardService) UserDetail(r *http.Request, request *UserDetailReques
 	if err != nil {
 		log.WithError(err).
 			Error("UserDetails failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	*reply = UserDetailResponse{
@@ -230,7 +231,7 @@ func FetchUserStatus(ctx context.Context) (UsersStatus, error) {
 		return UsersStatus{}, err
 	}
 
-	userCount, err := database.UserCount(db)
+	userCount, err := query.UserCount(db)
 	if err != nil {
 		return UsersStatus{}, err
 	}

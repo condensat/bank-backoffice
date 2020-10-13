@@ -8,14 +8,16 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/condensat/bank-core"
-	apiservice "github.com/condensat/bank-core/api/services"
-	"github.com/condensat/bank-core/api/sessions"
 	"github.com/condensat/bank-core/appcontext"
+	"github.com/condensat/bank-core/logger"
+	"github.com/condensat/bank-core/security/secureid"
+
 	"github.com/condensat/bank-core/database"
 	"github.com/condensat/bank-core/database/model"
-	"github.com/condensat/bank-core/logger"
-	"github.com/condensat/secureid"
+	"github.com/condensat/bank-core/database/query"
+
+	"github.com/condensat/bank-core/networking"
+	"github.com/condensat/bank-core/networking/sessions"
 )
 
 const (
@@ -30,7 +32,7 @@ type SwapStatus struct {
 func FetchSwapStatus(ctx context.Context) (SwapStatus, error) {
 	db := appcontext.Database(ctx)
 
-	swaps, err := database.SwapssInfos(db)
+	swaps, err := query.SwapssInfos(db)
 	if err != nil {
 		return SwapStatus{}, err
 	}
@@ -43,7 +45,7 @@ func FetchSwapStatus(ctx context.Context) (SwapStatus, error) {
 
 // SwapListRequest holds args for swaplist requests
 type SwapListRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	RequestPaging
 }
 
@@ -63,10 +65,10 @@ func (p *DashboardService) SwapList(r *http.Request, request *SwapListRequest, r
 	ctx := r.Context()
 	db := appcontext.Database(ctx)
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.SwapList")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "SwapList")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "SwapList")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -91,21 +93,21 @@ func (p *DashboardService) SwapList(r *http.Request, request *SwapListRequest, r
 			log.WithError(err).
 				WithField("Start", request.Start).
 				Error("startID FromSecureID failed")
-			return apiservice.ErrServiceInternalError
+			return sessions.ErrInternalError
 		}
 	}
 	var pagesCount int
 	var ids []model.SwapID
 	infos := make(map[model.SwapID]SwapInfo)
-	err = db.Transaction(func(db bank.Database) error {
+	err = db.Transaction(func(db database.Context) error {
 		var err error
-		pagesCount, err = database.SwapPagingCount(db, DefaulSwapCountByPage)
+		pagesCount, err = query.SwapPagingCount(db, DefaulSwapCountByPage)
 		if err != nil {
 			pagesCount = 0
 			return err
 		}
 
-		ids, err = database.SwapPage(db, model.SwapID(startID), DefaulSwapCountByPage)
+		ids, err = query.SwapPage(db, model.SwapID(startID), DefaulSwapCountByPage)
 		if err != nil {
 			ids = nil
 			return err
@@ -113,13 +115,13 @@ func (p *DashboardService) SwapList(r *http.Request, request *SwapListRequest, r
 		for _, id := range ids {
 			var info SwapInfo
 
-			swap, err := database.GetSwap(db, id)
+			swap, err := query.GetSwap(db, id)
 			if err != nil {
 				ids = nil
 				return err
 			}
 
-			swapInfo, err := database.GetSwapInfoBySwapID(db, id)
+			swapInfo, err := query.GetSwapInfoBySwapID(db, id)
 			if err != nil {
 				ids = nil
 				return err
@@ -136,7 +138,7 @@ func (p *DashboardService) SwapList(r *http.Request, request *SwapListRequest, r
 	if err != nil {
 		log.WithError(err).
 			Error("SwapPage failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	var next string
@@ -181,7 +183,7 @@ func (p *DashboardService) SwapList(r *http.Request, request *SwapListRequest, r
 
 // SwapDetailRequest holds args for swapdetail requests
 type SwapDetailRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	SwapID string `json:"swapId"`
 }
 
@@ -197,10 +199,10 @@ func (p *DashboardService) SwapDetail(r *http.Request, request *SwapDetailReques
 	ctx := r.Context()
 	db := appcontext.Database(ctx)
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.SwapDetail")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "SwapList")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "SwapList")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -223,20 +225,20 @@ func (p *DashboardService) SwapDetail(r *http.Request, request *SwapDetailReques
 		log.WithError(err).
 			WithField("SwapID", request.SwapID).
 			Error("swapID FromSecureID failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	var swap model.Swap
 	var swapStatus model.SwapStatus
-	err = db.Transaction(func(db bank.Database) error {
+	err = db.Transaction(func(db database.Context) error {
 		var err error
 
-		swap, err = database.GetSwap(db, model.SwapID(swapID))
+		swap, err = query.GetSwap(db, model.SwapID(swapID))
 		if err != nil {
 			return err
 		}
 
-		swapInfo, err := database.GetSwapInfoBySwapID(db, swap.ID)
+		swapInfo, err := query.GetSwapInfoBySwapID(db, swap.ID)
 		if err != nil {
 			return err
 		}
@@ -247,7 +249,7 @@ func (p *DashboardService) SwapDetail(r *http.Request, request *SwapDetailReques
 	if err != nil {
 		log.WithError(err).
 			Error("SwapDetail failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	secureID, err := sID.ToSecureID("swap", secureid.Value(uint64(swap.ID)))

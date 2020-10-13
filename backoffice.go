@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/condensat/bank-backoffice/services"
-	"github.com/condensat/bank-core/api/sessions"
+	"github.com/condensat/bank-core/networking/sessions"
 
 	"github.com/condensat/bank-core/logger"
 	"github.com/condensat/bank-core/utils"

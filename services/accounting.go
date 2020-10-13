@@ -8,17 +8,18 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/condensat/bank-core"
 	"github.com/condensat/bank-core/logger"
 
-	apiservice "github.com/condensat/bank-core/api/services"
-	"github.com/condensat/bank-core/api/sessions"
+	"github.com/condensat/bank-core/networking"
+	"github.com/condensat/bank-core/networking/sessions"
 
-	"github.com/condensat/secureid"
+	"github.com/condensat/bank-core/security/secureid"
 
 	"github.com/condensat/bank-core/appcontext"
+
 	"github.com/condensat/bank-core/database"
 	"github.com/condensat/bank-core/database/model"
+	"github.com/condensat/bank-core/database/query"
 )
 
 const (
@@ -40,7 +41,7 @@ type AccountingStatus struct {
 func FetchAccountingStatus(ctx context.Context) (AccountingStatus, error) {
 	db := appcontext.Database(ctx)
 
-	accountsInfo, err := database.AccountsInfos(db)
+	accountsInfo, err := query.AccountsInfos(db)
 	if err != nil {
 		return AccountingStatus{}, err
 	}
@@ -63,7 +64,7 @@ func FetchAccountingStatus(ctx context.Context) (AccountingStatus, error) {
 
 // AccountListRequest holds args for accountlist requests
 type AccountListRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	RequestPaging
 }
 
@@ -86,10 +87,10 @@ func (p *DashboardService) AccountList(r *http.Request, request *AccountListRequ
 	ctx := r.Context()
 	db := appcontext.Database(ctx)
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.AccountList")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "AccountList")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "AccountList")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -120,15 +121,15 @@ func (p *DashboardService) AccountList(r *http.Request, request *AccountListRequ
 	var pagesCount int
 	var accountPage []model.Account
 	infos := make(map[model.AccountID]AccountInfo)
-	err = db.Transaction(func(db bank.Database) error {
+	err = db.Transaction(func(db database.Context) error {
 		var err error
-		pagesCount, err = database.AccountPagingCount(db, DefaultAccountCountByPage)
+		pagesCount, err = query.AccountPagingCount(db, DefaultAccountCountByPage)
 		if err != nil {
 			pagesCount = 0
 			return err
 		}
 
-		accountPage, err = database.AccountPage(db, model.AccountID(startID), DefaultUserCountByPage)
+		accountPage, err = query.AccountPage(db, model.AccountID(startID), DefaultUserCountByPage)
 		if err != nil {
 			accountPage = nil
 			return err
@@ -136,12 +137,12 @@ func (p *DashboardService) AccountList(r *http.Request, request *AccountListRequ
 		for _, account := range accountPage {
 			var info AccountInfo
 
-			status, err := database.GetAccountStatusByAccountID(db, account.ID)
+			status, err := query.GetAccountStatusByAccountID(db, account.ID)
 			if err != nil {
 				accountPage = nil
 				return err
 			}
-			last, err := database.GetLastAccountOperation(db, account.ID)
+			last, err := query.GetLastAccountOperation(db, account.ID)
 			if err != nil {
 				accountPage = nil
 				return err
@@ -159,7 +160,7 @@ func (p *DashboardService) AccountList(r *http.Request, request *AccountListRequ
 	if err != nil {
 		log.WithError(err).
 			Error("UserPaging failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	var next string
@@ -211,7 +212,7 @@ func (p *DashboardService) AccountList(r *http.Request, request *AccountListRequ
 
 // UserAccountListRequest holds args for useraccountlist requests
 type UserAccountListRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	UserID string `json:"userId"`
 }
 
@@ -226,10 +227,10 @@ func (p *DashboardService) UserAccountList(r *http.Request, request *UserAccount
 	ctx := r.Context()
 	db := appcontext.Database(ctx)
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.UserAccountListRequest")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "UserAccountListRequest")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "UserAccountListRequest")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -258,15 +259,15 @@ func (p *DashboardService) UserAccountList(r *http.Request, request *UserAccount
 	var user model.User
 	var accounts []string
 	var accounting AccountingStatus
-	err = db.Transaction(func(db bank.Database) error {
+	err = db.Transaction(func(db database.Context) error {
 		var err error
 
-		user, err = database.FindUserById(db, model.UserID(userID))
+		user, err = query.FindUserById(db, model.UserID(userID))
 		if err != nil {
 			return err
 		}
 
-		accountsInfo, err := database.AccountsInfosByUser(db, model.UserID(userID))
+		accountsInfo, err := query.AccountsInfosByUser(db, model.UserID(userID))
 		if err != nil {
 			return err
 		}
@@ -286,7 +287,7 @@ func (p *DashboardService) UserAccountList(r *http.Request, request *UserAccount
 			Balances: balances,
 		}
 
-		accountIDs, err := database.GetUserAccounts(db, user.ID)
+		accountIDs, err := query.GetUserAccounts(db, user.ID)
 		if err != nil {
 			return err
 		}
@@ -303,7 +304,7 @@ func (p *DashboardService) UserAccountList(r *http.Request, request *UserAccount
 	if err != nil {
 		log.WithError(err).
 			Error("UserAccountList failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	*reply = UserAccountListResponse{
@@ -317,7 +318,7 @@ func (p *DashboardService) UserAccountList(r *http.Request, request *UserAccount
 
 // AccountDetailRequest holds args for accountdetail requests
 type AccountDetailRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 	AccountID string `json:"accountId"`
 }
 
@@ -335,10 +336,10 @@ func (p *DashboardService) AccountDetail(r *http.Request, request *AccountDetail
 	ctx := r.Context()
 	db := appcontext.Database(ctx)
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.UserAccountListRequest")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "UserAccountListRequest")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "UserAccountListRequest")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -361,25 +362,25 @@ func (p *DashboardService) AccountDetail(r *http.Request, request *AccountDetail
 		log.WithError(err).
 			WithField("AccountID", request.AccountID).
 			Error("accountID FromSecureID failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	var account model.Account
 	var accountState model.AccountState
 	var last model.AccountOperation
-	err = db.Transaction(func(db bank.Database) error {
+	err = db.Transaction(func(db database.Context) error {
 		var err error
 
-		account, err = database.GetAccountByID(db, model.AccountID(accountID))
+		account, err = query.GetAccountByID(db, model.AccountID(accountID))
 		if err != nil {
 			return err
 		}
-		accountState, err = database.GetAccountStatusByAccountID(db, model.AccountID(accountID))
+		accountState, err = query.GetAccountStatusByAccountID(db, model.AccountID(accountID))
 		if err != nil {
 			return err
 		}
 
-		last, err = database.GetLastAccountOperation(db, model.AccountID(accountID))
+		last, err = query.GetLastAccountOperation(db, model.AccountID(accountID))
 		if err != nil {
 			return err
 		}
@@ -389,7 +390,7 @@ func (p *DashboardService) AccountDetail(r *http.Request, request *AccountDetail
 	if err != nil {
 		log.WithError(err).
 			Error("AccountDetail failed")
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 
 	secureID, err := sID.ToSecureID("user", secureid.Value(uint64(account.UserID)))

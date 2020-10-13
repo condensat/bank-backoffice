@@ -9,10 +9,10 @@ import (
 
 	"github.com/condensat/bank-core/appcontext"
 
-	"github.com/condensat/bank-core/api/sessions"
+	"github.com/condensat/bank-core/networking/sessions"
 
-	"github.com/condensat/bank-core/database"
 	"github.com/condensat/bank-core/database/model"
+	"github.com/condensat/bank-core/database/query"
 
 	"github.com/sirupsen/logrus"
 )
@@ -37,7 +37,7 @@ func isUserAdmin(ctx context.Context, log *logrus.Entry, sessionID sessions.Sess
 		"UserID":    userID,
 	})
 
-	isAdmin, err := database.UserHasRole(db, model.UserID(userID), model.RoleNameAdmin)
+	isAdmin, err := query.UserHasRole(db, model.UserID(userID), model.RoleNameAdmin)
 	if err != nil {
 		log.WithError(err).
 			WithField("RoleName", model.RoleNameAdmin).

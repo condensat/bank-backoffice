@@ -9,9 +9,10 @@ import (
 	"errors"
 	"net/http"
 
-	apiservice "github.com/condensat/bank-core/api/services"
-	"github.com/condensat/bank-core/api/sessions"
 	"github.com/condensat/bank-core/database/model"
+
+	"github.com/condensat/bank-core/networking"
+	"github.com/condensat/bank-core/networking/sessions"
 
 	"github.com/condensat/bank-core/logger"
 )
@@ -24,7 +25,7 @@ type DashboardService int
 
 // StatusRequest holds args for status requests
 type StatusRequest struct {
-	apiservice.SessionArgs
+	sessions.SessionArgs
 }
 
 // StatusResponse holds args for string requests
@@ -36,10 +37,10 @@ type StatusResponse struct {
 func (p *DashboardService) Status(r *http.Request, request *StatusRequest, reply *StatusResponse) error {
 	ctx := r.Context()
 	log := logger.Logger(ctx).WithField("Method", "services.DashboardService.Status")
-	log = apiservice.GetServiceRequestLog(log, r, "Dashboard", "Status")
+	log = networking.GetServiceRequestLog(log, r, "Dashboard", "Status")
 
 	// Get userID from session
-	request.SessionID = apiservice.GetSessionCookie(r)
+	request.SessionID = sessions.GetSessionCookie(r)
 	sessionID := sessions.SessionID(request.SessionID)
 
 	isAdmin, log, err := isUserAdmin(ctx, log, sessionID)
@@ -57,7 +58,7 @@ func (p *DashboardService) Status(r *http.Request, request *StatusRequest, reply
 
 	bankStatus, logStatus, err := FetchDashboardStatus(ctx)
 	if err != nil {
-		return apiservice.ErrServiceInternalError
+		return sessions.ErrInternalError
 	}
 	*reply = StatusResponse{
 		Bank: bankStatus,
